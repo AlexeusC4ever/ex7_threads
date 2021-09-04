@@ -16,7 +16,7 @@ public:
 
 	void set_string(std::vector<int>&& a)
 	{
-		//after receiving the boundary row, I open access to it for another thread
+		//after receiving the boundary row, we open access to it for another thread
 		tmp_str = std::move(a);
 		mutex.unlock();
 	}
