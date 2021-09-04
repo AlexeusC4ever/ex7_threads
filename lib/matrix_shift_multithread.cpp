@@ -11,19 +11,19 @@ private:
 	std::unique_lock<std::shared_mutex> mutex;
 
 public:
-	//Исользуем unique_lock, чтобы захватить мьютекс при инициализации
+	//using unique_lock to capture a mutex during initialization
 	Tmp_Str(std::shared_mutex& mute) :mutex(mute) {}
 
 	void set_string(std::vector<int>&& a)
 	{
-		//При получении граничной строки, открываем к ней доступ соседнему потоку
+		//after receiving the boundary row, I open access to it for another thread
 		tmp_str = std::move(a);
 		mutex.unlock();
 	}
 
 	std::vector<int>& get_string()
 	{
-		//Пробуем получить граничную строку, захватывая мьютекс для чтения
+		//trying to access the boundary row, capturing a mutex for reading
 		std::shared_lock<std::shared_mutex> read_lock(*mutex.mutex());
 		return tmp_str;
 	}
@@ -37,16 +37,17 @@ void shift_right_down_multithread_with_buf(matrixvec& matrix,
 
 	if (threads > str) threads = str;
 
-	std::vector<std::thread> thrvec(threads);			//вектор потоков
-	std::vector<std::shared_mutex> mutvec(threads);		//вектор мьютексов
-	std::vector<Tmp_Str> locks_strings;					//вектор граничных строк
+	std::vector<std::thread> thrvec(threads);			//the vector of threads
+	std::vector<std::shared_mutex> mutvec(threads);		//the vector of mutexes
+	std::vector<Tmp_Str> locks_strings;					//the vector of boundary rows
 
-	for (size_t i = 0; i < threads; ++i)	//Сразу захватываем мьютексы, чтобы потоки не могли обратиться к еще неполученным данным
+	for (size_t i = 0; i < threads; ++i)
+	//immediate capture of mutexes so that threads can't access to data that has mot yet been recieved
 	{
 		locks_strings.emplace_back(mutvec[i]);
 	}
 
-	size_t str_in_small_thread = str / threads;	//Распределяем диапазоны
+	size_t str_in_small_thread = str / threads;	//assigning intervals to threads
 	size_t big_threads_mount = str % threads;
 
 	size_t start = 0;
@@ -54,7 +55,7 @@ void shift_right_down_multithread_with_buf(matrixvec& matrix,
 	for (size_t count = 0; count < threads; ++count)
 	{
 		size_t end = start;
-		if (big_threads_mount > 0) {			//Распределяем диапазоны
+		if (big_threads_mount > 0) {			//assigning intervals to threads
 			end += str_in_small_thread + 1;
 			--big_threads_mount;
 		}
@@ -76,10 +77,10 @@ void shift_right_down_multithread_with_buf(matrixvec& matrix,
 					str_for_lock_strings[i] = matrix[end - 1][i - 1];
 				}
 
-				//закидываем граничную строку в вектор сразу сдвинутой
+				//we give to the vector a boundary row that was already been shifted
 				locks_strings[count].set_string(std::move(str_for_lock_strings));
 
-				for (size_t i = start; i < end - 1; ++i)	//делаем сдвиг на один элемент вправо во всех остальных строках
+				for (size_t i = start; i < end - 1; ++i)	//shift one element to the right in all other rows
 				{
 					int tmp = matrix[i][col - 1];
 					for (size_t j = col - 1; j > 0; --j)
@@ -89,13 +90,13 @@ void shift_right_down_multithread_with_buf(matrixvec& matrix,
 					matrix[i][0] = tmp;
 				}
 
-				//сдвигаем все строки кроме первой
+				//shifting all the rows except the first in interval
 				for (size_t i = end - 1; i > start; --i)
 				{
 					matrix[i] = matrix[i - 1];
 				}
 
-				//на место первой ставим граничную строку из буфера
+				//instead of the first row in our interval we set the boundary row obtained from previous thread
 				matrix[start] = locks_strings[number_of_prev_mutex].get_string();
 
 			});
