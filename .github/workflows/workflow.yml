@@ -48,12 +48,13 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -G "MinGW Makefiles" ..
+          cmake ninja ..
           cmake --build .
+          cd ..
           
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v3.0.0
         with:
           name: my_app
-          path: app_**
+          path: build/src/debug/main**
           
